@@ -1,0 +1,32 @@
+# k8s/v1/hpa.yaml
+#
+# HorizontalPodAutoscaler for the v1.0 deployment.
+#
+# Configuration rationale:
+#   min: 2  — always maintain HA (one pod can fail without downtime)
+#   max: 5  — cap scaling to stay within the cluster's resource budget
+#   target: 50% average CPU — a common starting point; scale-up begins when
+#            pods are at half their CPU limit, leaving headroom before saturation
+#
+# The metrics-server addon must be enabled in Minikube for HPA to work:
+#   minikube addons enable metrics-server
+#
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: product-catalogue-hpa
+  namespace: catalogue-v1
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: product-catalogue
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

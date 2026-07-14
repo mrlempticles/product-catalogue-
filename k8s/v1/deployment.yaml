@@ -1,0 +1,63 @@
+# k8s/v1/deployment.yaml
+#
+# Deploys the product-catalogue-service as version v1.0.
+# APP_VERSION=v1.0 enables: GET /health, GET /products
+#
+# Namespace: catalogue-v1 (isolated from other versions)
+# Replicas: 2 (minimum for HA; HPA will scale up under load)
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-catalogue
+  namespace: catalogue-v1
+  labels:
+    app: product-catalogue
+    version: v1.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product-catalogue
+      version: v1.0
+  template:
+    metadata:
+      labels:
+        app: product-catalogue
+        version: v1.0
+    spec:
+      containers:
+        - name: product-catalogue
+          # Both tags point to the same image — SHA for traceability, latest for convenience.
+          image: sadmomo/product-catalogue:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: APP_VERSION
+              value: "v1.0"
+            - name: PORT
+              value: "3000"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          # Readiness probe: Kubernetes waits for /health to return 200
+          # before sending traffic to this pod. Prevents routing to a pod
+          # that is still starting up.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          # Liveness probe: restarts the pod if it stops responding to /health.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20

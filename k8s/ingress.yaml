@@ -1,0 +1,113 @@
+# k8s/ingress.yaml
+#
+# ─── Cross-Namespace Ingress Routing ──────────────────────────────────────────
+#
+# Problem: A Kubernetes Ingress resource can only reference Services in its own
+# namespace. Our three version Services live in separate namespaces
+# (catalogue-v1, catalogue-v1-1, catalogue-v2).
+#
+# Solution: Create ExternalName Services in the `default` namespace that act as
+# DNS aliases pointing to each version's ClusterIP via its internal DNS name:
+#   <svc-name>.<namespace>.svc.cluster.local
+#
+# The Ingress (also in `default`) then references these ExternalName Services
+# as if they were local — the cluster DNS resolver does the forwarding.
+# This is the standard, boring, no-extra-tooling solution for cross-namespace routing.
+#
+# ─── ExternalName Services ────────────────────────────────────────────────────
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogue-v1-ext
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: product-catalogue-svc.catalogue-v1.svc.cluster.local
+  ports:
+    - port: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogue-v1-1-ext
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: product-catalogue-svc.catalogue-v1-1.svc.cluster.local
+  ports:
+    - port: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogue-v2-ext
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: product-catalogue-svc.catalogue-v2.svc.cluster.local
+  ports:
+    - port: 3000
+
+# ─── Ingress ──────────────────────────────────────────────────────────────────
+#
+# Routes:
+#   /v1(/|$)(.*)   → catalogue-v1-ext  (rewrites to /$2, e.g. /v1/health → /health)
+#   /v1.1(/|$)(.*) → catalogue-v1-1-ext
+#   /v2(/|$)(.*)   → catalogue-v2-ext
+#
+# Annotations:
+#   rewrite-target: /$2   — strips the version prefix before forwarding to the backend.
+#                           The backend sees /health instead of /v1/health.
+#   use-regex: "true"     — enables regex path matching (required for capture groups)
+#
+# nginx.ingress.kubernetes.io/upstream-vhost: required when using ExternalName
+# services so NGINX sets the Host header correctly for the upstream.
+#
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: product-catalogue-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # When forwarding through ExternalName, NGINX must set the correct Host header.
+    # Without this, the upstream may reject the request.
+    nginx.ingress.kubernetes.io/upstream-vhost: product-catalogue-svc.catalogue-v1.svc.cluster.local
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # /v1 → v1.0 service
+          - path: /v1(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: catalogue-v1-ext
+                port:
+                  number: 3000
+
+          # /v1.1 → v1.1 service
+          # Note: the dot in /v1.1 is a regex metacharacter (matches any char),
+          # which is fine for routing — it won't accidentally match anything harmful.
+          - path: /v1.1(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: catalogue-v1-1-ext
+                port:
+                  number: 3000
+
+          # /v2 → v2.0 service
+          - path: /v2(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: catalogue-v2-ext
+                port:
+                  number: 3000

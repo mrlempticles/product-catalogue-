@@ -1,0 +1,24 @@
+# k8s/v2/hpa.yaml
+#
+# HorizontalPodAutoscaler for the v2.0 deployment.
+# Same scaling policy as v1.0 and v1.1 (min 2 / max 5 / 50% CPU).
+#
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: product-catalogue-hpa
+  namespace: catalogue-v2
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: product-catalogue
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

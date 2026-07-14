@@ -1,0 +1,201 @@
+# .github/workflows/ci-cd.yml
+#
+# CI/CD Pipeline for product-catalogue-service
+#
+# Triggers on every push to `main`.
+#
+# Jobs (in sequence — each waits for the previous to succeed):
+#   1. test            — install deps, run Vitest suite
+#   2. build-and-push  — build Docker image, push to Docker Hub (SHA + latest tags)
+#   3. integration-test — spin up container, curl /health, verify it boots
+#   4. dry-run-deploy  — kubectl apply --dry-run to validate K8s manifest syntax
+#
+# GitHub Secrets required (Settings → Secrets and variables → Actions → New repository secret):
+#   DOCKERHUB_USERNAME  — your Docker Hub username (e.g. "johndoe")
+#   DOCKERHUB_TOKEN     — a Docker Hub access token (NOT your password)
+#                         Generate at: https://hub.docker.com/settings/security → New Access Token
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ── Job 1: Test ─────────────────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Run tests with APP_VERSION=v2.0 to exercise all code paths in one pass.
+      # v2.0 is a superset of v1.1 which is a superset of v1.0, so this covers
+      # the most routes. Version-specific behaviour is tested per-describe in
+      # the test files by setting process.env.APP_VERSION before createApp().
+      - name: Run test suite
+        run: npm test
+        env:
+          APP_VERSION: v2.0
+          NODE_ENV: test
+
+  # ── Job 2: Build & Push ─────────────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test  # Only push if tests pass
+
+    # Expose the image name as an output so the integration-test job can use it
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      sha-tag: ${{ steps.meta.outputs.sha-tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Compute image tags:
+      #   latest — for Kubernetes manifests (imagePullPolicy: Always)
+      #   <sha>  — for traceability (pinned in audit logs / rollback)
+      - name: Compute image tags
+        id: meta
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/product-catalogue"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "sha-tag=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:latest
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha-tag }}
+          # No build-arg for APP_VERSION — it's a runtime env var, not a build arg.
+          # The same image is deployed three times with different env values.
+
+  # ── Job 3: Integration Test ──────────────────────────────────────────────────
+  integration-test:
+    name: Integration Test (docker run)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Start the container in the background with APP_VERSION=v2.0.
+      # Port 3000 is mapped to host 3000 so curl can reach it.
+      - name: Start container
+        run: |
+          docker run -d \
+            --name product-catalogue-test \
+            -e APP_VERSION=v2.0 \
+            -p 3000:3000 \
+            ${{ needs.build-and-push.outputs.image }}:${{ needs.build-and-push.outputs.sha-tag }}
+
+      # Wait up to 30 seconds for the server to be ready before testing.
+      # This handles the container start-up delay without a fixed sleep.
+      - name: Wait for service to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health; then
+              echo "Service is ready"
+              exit 0
+            fi
+            echo "Attempt $i/30 — waiting..."
+            sleep 1
+          done
+          echo "Service did not become ready in 30s"
+          docker logs product-catalogue-test
+          exit 1
+
+      # Confirm /health returns the expected JSON shape
+      - name: Verify /health endpoint
+        run: |
+          RESPONSE=$(curl -sf http://localhost:3000/health)
+          echo "Response: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['status'])")
+          VERSION=$(echo "$RESPONSE" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['version'])")
+
+          [ "$STATUS" = "ok" ] || { echo "Expected status=ok, got $STATUS"; exit 1; }
+          [ "$VERSION" = "v2.0" ] || { echo "Expected version=v2.0, got $VERSION"; exit 1; }
+          echo "Integration test passed: status=$STATUS version=$VERSION"
+
+      # Confirm /products returns a non-empty array
+      - name: Verify /products endpoint
+        run: |
+          COUNT=$(curl -sf http://localhost:3000/products | python3 -c "import sys, json; print(len(json.load(sys.stdin)))")
+          echo "Product count: $COUNT"
+          [ "$COUNT" -gt "0" ] || { echo "Expected non-empty product array"; exit 1; }
+          echo "Integration test passed: $COUNT products returned"
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm -f product-catalogue-test || true
+
+  # ── Job 4: Dry-Run Deploy ────────────────────────────────────────────────────
+  #
+  # NOTE: This job validates Kubernetes manifest syntax only.
+  # In a real production environment, this step would:
+  #   1. Configure kubectl with cloud cluster credentials (e.g. via AWS EKS kubeconfig
+  #      or GKE gcloud auth, injected as GitHub Secrets)
+  #   2. Run `kubectl apply -f k8s/` against the real cluster
+  #   3. Optionally wait for rollout: `kubectl rollout status deployment/...`
+  #
+  # For a Minikube-based assignment, we can't connect to a local cluster from
+  # GitHub's runners, so --dry-run=client is the appropriate substitute.
+  #
+  dry-run-deploy:
+    name: Validate K8s Manifests (dry-run)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      # --dry-run=client validates manifest syntax and schema without a cluster.
+      # This catches typos, missing required fields, and invalid API versions
+      # before they reach a real cluster.
+      - name: Validate namespace manifests — v1
+        run: kubectl apply --dry-run=client -f k8s/v1/
+
+      - name: Validate namespace manifests — v1-1
+        run: kubectl apply --dry-run=client -f k8s/v1-1/
+
+      - name: Validate namespace manifests — v2
+        run: kubectl apply --dry-run=client -f k8s/v2/
+
+      - name: Validate ingress manifest
+        run: kubectl apply --dry-run=client -f k8s/ingress.yaml

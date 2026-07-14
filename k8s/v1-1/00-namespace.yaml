@@ -1,0 +1,11 @@
+# k8s/v1-1/00-namespace.yaml
+#
+# Creates the catalogue-v1-1 namespace.
+# Prefixed with 00- so kubectl apply -f k8s/v1-1/ processes it first
+# (files are applied in lexicographic order). This ensures the namespace
+# exists before the Deployment and HPA that reference it.
+#
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: catalogue-v1-1

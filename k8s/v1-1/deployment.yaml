@@ -1,0 +1,58 @@
+# k8s/v1-1/deployment.yaml
+#
+# Deploys the product-catalogue-service as version v1.1.
+# APP_VERSION=v1.1 enables: GET /health, GET /products, GET /products/search?keyword=
+#
+# Namespace: catalogue-v1-1 (isolated from v1.0 and v2.0)
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-catalogue
+  namespace: catalogue-v1-1
+  labels:
+    app: product-catalogue
+    version: v1.1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product-catalogue
+      version: v1.1
+  template:
+    metadata:
+      labels:
+        app: product-catalogue
+        version: v1.1
+    spec:
+      containers:
+        - name: product-catalogue
+          # Same image as v1.0 — only APP_VERSION differs
+          image: sadmomo/product-catalogue:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: APP_VERSION
+              value: "v1.1"
+            - name: PORT
+              value: "3000"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20

@@ -1,0 +1,22 @@
+# k8s/v2/service.yaml
+#
+# ClusterIP Service for the v2.0 deployment.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-catalogue-svc
+  namespace: catalogue-v2
+  labels:
+    app: product-catalogue
+    version: v2.0
+spec:
+  type: ClusterIP
+  selector:
+    app: product-catalogue
+    version: v2.0
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
