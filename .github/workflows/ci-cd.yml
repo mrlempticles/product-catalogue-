@@ -181,22 +181,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.10.0
 
-      # --dry-run=client validates manifest syntax without applying.
-      # --validate=false is required here because without a real cluster connection,
-      # kubectl cannot download the OpenAPI schemas it normally uses for deep validation.
+      # With a local Kind cluster running, kubectl can now successfully download
+      # OpenAPI schemas and perform discovery, making --dry-run=client work perfectly.
       - name: Validate namespace manifests — v1
-        run: kubectl apply --dry-run=client --validate=false -f k8s/v1/
+        run: kubectl apply --dry-run=client -f k8s/v1/
 
       - name: Validate namespace manifests — v1-1
-        run: kubectl apply --dry-run=client --validate=false -f k8s/v1-1/
+        run: kubectl apply --dry-run=client -f k8s/v1-1/
 
       - name: Validate namespace manifests — v2
-        run: kubectl apply --dry-run=client --validate=false -f k8s/v2/
+        run: kubectl apply --dry-run=client -f k8s/v2/
 
       - name: Validate ingress manifest
-        run: kubectl apply --dry-run=client --validate=false -f k8s/ingress.yaml
+        run: kubectl apply --dry-run=client -f k8s/ingress.yaml
