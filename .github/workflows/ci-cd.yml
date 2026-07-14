@@ -112,11 +112,12 @@ jobs:
       # Port 3000 is mapped to host 3000 so curl can reach it.
       - name: Start container
         run: |
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/product-catalogue"
           docker run -d \
             --name product-catalogue-test \
             -e APP_VERSION=v2.0 \
             -p 3000:3000 \
-            ${{ needs.build-and-push.outputs.image }}:${{ needs.build-and-push.outputs.sha-tag }}
+            ${IMAGE}:${{ needs.build-and-push.outputs.sha-tag }}
 
       # Wait up to 30 seconds for the server to be ready before testing.
       # This handles the container start-up delay without a fixed sleep.
@@ -185,17 +186,17 @@ jobs:
         with:
           version: latest
 
-      # --dry-run=client validates manifest syntax and schema without a cluster.
-      # This catches typos, missing required fields, and invalid API versions
-      # before they reach a real cluster.
+      # --dry-run=client validates manifest syntax without applying.
+      # --validate=false is required here because without a real cluster connection,
+      # kubectl cannot download the OpenAPI schemas it normally uses for deep validation.
       - name: Validate namespace manifests — v1
-        run: kubectl apply --dry-run=client -f k8s/v1/
+        run: kubectl apply --dry-run=client --validate=false -f k8s/v1/
 
       - name: Validate namespace manifests — v1-1
-        run: kubectl apply --dry-run=client -f k8s/v1-1/
+        run: kubectl apply --dry-run=client --validate=false -f k8s/v1-1/
 
       - name: Validate namespace manifests — v2
-        run: kubectl apply --dry-run=client -f k8s/v2/
+        run: kubectl apply --dry-run=client --validate=false -f k8s/v2/
 
       - name: Validate ingress manifest
-        run: kubectl apply --dry-run=client -f k8s/ingress.yaml
+        run: kubectl apply --dry-run=client --validate=false -f k8s/ingress.yaml
