@@ -22,7 +22,7 @@ const router = Router();
 router.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
-    version: process.env.APP_VERSION ?? 'unknown',
+    version: process.env.APP_VERSION ?? 'v1.0',
   });
 });
 

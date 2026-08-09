@@ -36,3 +36,5 @@ export function createApp(): express.Express {
 
   return app;
 }
+
+export default createApp();
