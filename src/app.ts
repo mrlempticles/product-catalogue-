@@ -22,6 +22,19 @@ export function createApp(): express.Express {
 
   // ── Routes ──────────────────────────────────────────────────────────────────
 
+  // Root endpoint info
+  app.get('/', (_req, res) => {
+    res.json({
+      service: 'Product Catalogue Service',
+      version: process.env.APP_VERSION ?? 'v1.0',
+      endpoints: {
+        health: '/health',
+        products: '/products',
+        search: '/products/search',
+      },
+    });
+  });
+
   // Health check — all versions
   app.use('/', healthRouter);
 
