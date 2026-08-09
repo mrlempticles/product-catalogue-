@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg-beige: #FAF7F2;
+  --bg-beige-card: #FFFFFF;
+  --bg-beige-card-hover: #FFFDF9;
+  --orange-primary: #E64A19;
+  --orange-bright: #FF5722;
+  --orange-light: #FBE9E7;
+  --orange-subtle: rgba(230, 74, 25, 0.08);
+  --text-main: #1C1917;
+  --text-muted: #78716C;
+  --border-light: rgba(230, 74, 25, 0.12);
+  --border-strong: rgba(230, 74, 25, 0.25);
+  --grid-line-main: rgba(230, 74, 25, 0.07);
+  --grid-line-sub: rgba(28, 25, 23, 0.03);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Global Reset & Box Sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-beige);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Precision Thin Grid Background */
+.bg-grid-pattern {
+  background-color: var(--bg-beige);
+  background-image: 
+    linear-gradient(to right, var(--grid-line-main) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line-main) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-line-sub) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line-sub) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 10px 10px, 10px 10px;
+  background-position: -1px -1px;
+}
+
+/* Monospace text */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-beige);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(230, 74, 25, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--orange-primary);
+}
+
+/* Minimal Micro Animations & Hover Effects */
+.card-hover-effect {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.25s ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-3px);
+  border-color: rgba(230, 74, 25, 0.4);
+  box-shadow: 0 12px 28px -6px rgba(230, 74, 25, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* Tag Pill */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: var(--orange-light);
+  color: var(--orange-primary);
+  border: 1px solid rgba(230, 74, 25, 0.15);
+}
+
+/* Device Viewport Modal Shadows & Glow */
+.modal-shadow {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(230, 74, 25, 0.15);
+}
+
+/* Code Explorer Styling */
+.code-window {
+  background-color: #121417;
+  color: #E2E8F0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Grid Header Accent */
+.grid-badge {
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.1) 0%, rgba(230, 74, 25, 0.03) 100%);
+  border: 1px dashed var(--orange-primary);
+}
+
+/* Keyframe Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseBorder {
+  0%, 100% { border-color: rgba(230, 74, 25, 0.3); }
+  50% { border-color: rgba(230, 74, 25, 0.7); }
+}
+
+.animate-pulse-border {
+  animation: pulseBorder 3s infinite ease-in-out;
+}

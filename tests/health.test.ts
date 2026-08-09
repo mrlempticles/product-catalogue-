@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import supertest from 'supertest';
-import { createApp } from '../src/app';
+import { createApp } from '../src/expressApp';
 
 // ── v1.0 ──────────────────────────────────────────────────────────────────────
 

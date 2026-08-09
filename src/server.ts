@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 /**
  * src/server.ts
  *
@@ -8,7 +8,7 @@
  * All application logic lives in app.ts and below.
  */
 
-import { createApp } from './app';
+import { createApp } from './expressApp';
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const VERSION = process.env.APP_VERSION ?? 'v1.0';
