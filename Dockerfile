@@ -32,7 +32,7 @@ WORKDIR /app
 # wget is needed for the HEALTHCHECK command below.
 # slim doesn't include it by default; install it cleanly.
 RUN apt-get update -y && apt-get install -y --no-install-recommends wget \
-    && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
 # Install only production dependencies
 COPY package*.json ./

@@ -10,9 +10,10 @@ A lightweight microservice that exposes a curated product catalogue through a ve
 2. [Running Locally](#running-locally)
 3. [Building & Running with Docker](#building--running-with-docker)
 4. [Deploying to Minikube](#deploying-to-minikube)
-5. [CI/CD Pipeline](#cicd-pipeline)
-6. [Security Scanning](#security-scanning)
-7. [GitHub Secrets](#github-secrets)
+5. [Deploying to Vercel](#deploying-to-vercel)
+6. [CI/CD Pipeline](#cicd-pipeline)
+7. [Security Scanning](#security-scanning)
+8. [GitHub Secrets](#github-secrets)
 
 ---
 
@@ -233,6 +234,31 @@ curl "http://$MINIKUBE_IP/v2/products/search?category=Electronics&minPrice=50&ma
 # v2.0 - invalid price (should return 400)
 curl "http://$MINIKUBE_IP/v2/products/search?minPrice=notanumber"
 ```
+
+---
+
+## Deploying to Vercel
+
+The service is fully configured to run as a Vercel Serverless Function via [api/index.ts](file:///d:/code/gray%202/product-catalogue-service/api/index.ts) and [vercel.json](file:///d:/code/gray%202/product-catalogue-service/vercel.json).
+
+### Option 1 — Deploy via Vercel CLI
+
+```bash
+# Install Vercel CLI (if not installed)
+npm install -g vercel
+
+# Deploy from project directory
+vercel
+```
+
+### Option 2 — Deploy via Vercel Dashboard (Git)
+
+1. Push this repository to GitHub / GitLab / Bitbucket.
+2. Go to the [Vercel Dashboard](https://vercel.com/new) and import the repository.
+3. Vercel will automatically detect the settings from `vercel.json` and `api/index.ts`.
+4. Add Environment Variables (optional):
+   - `APP_VERSION`: `v1.0` | `v1.1` | `v2.0` (defaults to `v1.0`)
+5. Click **Deploy**.
 
 ---
 
